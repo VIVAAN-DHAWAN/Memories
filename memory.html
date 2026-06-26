@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#080808">
+<meta name="description" content="a private archive. enter your key.">
+<title>memories with the ones who matter.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root{
+  --bg:#080808;
+  --surface:rgba(255,255,255,0.045);
+  --surface-hi:rgba(255,255,255,0.07);
+  --border:rgba(255,255,255,0.07);
+  --border-hi:rgba(255,255,255,0.14);
+  --text:#e2e2e2;
+  --text-soft:#aaa;
+  --muted:#444;
+  --muted-2:#383838;
+  --muted-3:#252525;
+  --accent:#a78bfa;
+  --accent-dim:rgba(167,139,250,0.15);
+  --accent-glow:rgba(167,139,250,0.35);
+  --error:#f87171;
+  --lock-gold:#fbbf24;
+  --radius:16px;
+  --radius-sm:10px;
+  --ease:cubic-bezier(0.22,1,0.36,1);
+  --ease-back:cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* Per-person accent overrides (set on body via JS) */
+body[data-accent="violet"]   { --accent:#a78bfa; --accent-dim:rgba(167,139,250,0.15); --accent-glow:rgba(167,139,250,0.35); }
+body[data-accent="rose"]     { --accent:#fb7185; --accent-dim:rgba(251,113,133,0.15); --accent-glow:rgba(251,113,133,0.35); }
+body[data-accent="emerald"]  { --accent:#34d399; --accent-dim:rgba(52,211,153,0.15); --accent-glow:rgba(52,211,153,0.35); }
+body[data-accent="amber"]    { --accent:#fbbf24; --accent-dim:rgba(251,191,36,0.15); --accent-glow:rgba(251,191,36,0.35); }
+
+/* ============================================================
+   RESET / BASE
+   ============================================================ */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  font-size:15px;
+  line-height:1.8;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+  min-height:100dvh;
+  position:relative;
+}
+h1,h2,h3,h4{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:-0.01em}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input{font-family:inherit}
+::selection{background:var(--accent-dim);color:var(--text)}
+
+/* Ambient gradient wash behind everything */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(800px 600px at 15% 0%, rgba(167,139,250,0.06), transparent 60%),
+    radial-gradient(700px 500px at 85% 100%, rgba(167,139,250,0.04), transparent 60%);
+  pointer-events:none;
+  z-index:0;
+  transition:opacity 600ms ease;
+}
+
+/* Subtle grain over everything */
+body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity:0.028;
+  pointer-events:none;
+  z-index:9999;
+  mix-blend-mode:overlay;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#1e1e1e;border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:#2a2a2a}
+*{scrollbar-width:thin;scrollbar-color:#1e1e1e transparent}
+
+/* Ambient particle canvas — lock screen only, extremely subtle */
+#ambient-canvas{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:1;
+  opacity:0.15;
+  transition:opacity 400ms ease;
+}
+#ambient-canvas.hidden{opacity:0}
+
+/* Cursor glow (lock screen only, activates on first mouse move) */
+#cursor-glow{
+  position:fixed;
+  width:340px;
+  height:340px;
+  border-radius:50%;
+  background:radial-gradient(circle, var(--accent-glow) 0%, transparent 65%);
+  pointer-events:none;
+  z-index:2;
+  transform:translate(-50%,-50%);
+  opacity:0;
+  transition:opacity 400ms ease;
+  mix-blend-mode:screen;
+  filter:blur(8px);
+}
+#cursor-glow.active{opacity:0.5}
+
+/* Reading progress bar */
+#progress-bar{
+  position:fixed;
+  top:0;
+  left:0;
+  height:2px;
+  width:0%;
+  background:linear-gradient(90deg, var(--accent), transparent);
+  z-index:100;
+  transition:width 80ms linear;
+  box-shadow:0 0 12px var(--accent-glow);
+}
+
+/* ============================================================
+   PASSWORD SCREEN
+   ============================================================ */
+#password-screen{
+  position:fixed;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  z-index:50;
+  background:var(--bg);
+}
+#password-screen::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:radial-gradient(circle at 50% 40%, rgba(167,139,250,0.04), transparent 60%);
+  pointer-events:none;
+}
+
+#password-container{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  width:100%;
+  max-width:340px;
+  text-align:center;
+  z-index:1;
+}
+
+/* Lock */
+#lock-wrapper{
+  position:relative;
+  width:80px;
+  height:96px;
+  margin-bottom:36px;
+  animation:lockPulse 3s ease-in-out infinite;
+  will-change:filter,transform;
+}
+#lock-svg{width:100%;height:100%;display:block;overflow:visible}
+#lock-shackle{
+  stroke:#555;
+  stroke-width:2.5;
+  fill:none;
+  stroke-linecap:round;
+  transition:transform 420ms var(--ease-back), stroke 300ms ease;
+  transform-origin:center;
+}
+#lock-body{
+  fill:#1a1a1a;
+  stroke:#555;
+  stroke-width:1.5;
+  rx:6;
+  transition:stroke 300ms ease, filter 300ms ease;
+}
+#lock-keyhole{fill:#333;transition:fill 300ms ease}
+#lock-flash{
+  position:absolute;
+  top:50%;left:50%;
+  width:40px;height:40px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(251,191,36,0.6) 0%, rgba(251,191,36,0.2) 40%, transparent 70%);
+  transform:translate(-50%,-50%) scale(0.3);
+  opacity:0;
+  pointer-events:none;
+  z-index:2;
+}
+#lock-wrapper.shake{animation:lockShake 420ms ease-out}
+#lock-wrapper.error-flash #lock-body{
+  stroke:var(--error);
+  filter:drop-shadow(0 0 14px rgba(248,113,113,0.5));
+}
+#lock-wrapper.error-flash #lock-keyhole{fill:#5a2424}
+
+@keyframes lockPulse{
+  0%,100%{filter:drop-shadow(0 0 6px rgba(167,139,250,0.08))}
+  50%{filter:drop-shadow(0 0 14px rgba(167,139,250,0.18))}
+}
+@keyframes lockShake{
+  0%,100%{transform:translateX(0)}
+  15%{transform:translateX(-8px) rotate(-1deg)}
+  30%{transform:translateX(8px) rotate(1deg)}
+  45%{transform:translateX(-6px)}
+  60%{transform:translateX(6px)}
+  75%{transform:translateX(-3px)}
+  90%{transform:translateX(3px)}
+}
+@keyframes clickFlash{
+  0%{transform:translate(-50%,-50%) scale(0.3);opacity:0.9}
+  100%{transform:translate(-50%,-50%) scale(3.5);opacity:0}
+}
+@keyframes lockGlow{
+  0%{stroke:#555;filter:none}
+  50%{stroke:#fbbf24;filter:drop-shadow(0 0 20px rgba(251,191,36,0.7))}
+  100%{stroke:var(--accent);filter:drop-shadow(0 0 12px var(--accent-glow))}
+}
+@keyframes lockExit{
+  0%{opacity:1;transform:scale(1.04)}
+  100%{opacity:0;transform:scale(0.88)}
+}
+@keyframes screenFade{
+  to{opacity:0;pointer-events:none;visibility:hidden}
+}
+
+/* Headings */
+#password-container h1{
+  font-size:clamp(26px,5vw,42px);
+  color:var(--text);
+  font-weight:700;
+  letter-spacing:-0.02em;
+  line-height:1.15;
+}
+#password-container .subtitle{
+  font-size:13px;
+  color:var(--muted);
+  margin-top:8px;
+  font-weight:400;
+  letter-spacing:0.02em;
+}
+
+/* Input */
+.input-wrap{
+  position:relative;
+  width:100%;
+  max-width:280px;
+  margin-top:32px;
+}
+input[type="password"],input[type="text"]#pwd{
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:var(--radius-sm);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  font-size:15px;
+  letter-spacing:0.08em;
+  padding:13px 48px 13px 18px;
+  width:100%;
+  outline:none;
+  transition:border-color 200ms, box-shadow 200ms, background 200ms;
+}
+input#pwd:focus{
+  border-color:rgba(167,139,250,0.5);
+  box-shadow:0 0 0 3px rgba(167,139,250,0.1);
+  background:rgba(255,255,255,0.06);
+}
+input#pwd::placeholder{color:#3a3a3a;letter-spacing:0.08em}
+
+#toggle-pwd{
+  position:absolute;
+  right:10px;
+  top:50%;
+  transform:translateY(-50%);
+  background:transparent;
+  border:none;
+  color:var(--muted);
+  padding:6px;
+  border-radius:6px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:color 200ms, background 200ms;
+}
+#toggle-pwd:hover{color:var(--text);background:rgba(255,255,255,0.05)}
+#toggle-pwd svg{width:16px;height:16px}
+
+.caps-warning{
+  font-size:11px;
+  color:var(--lock-gold);
+  margin-top:8px;
+  opacity:0;
+  transition:opacity 200ms;
+  letter-spacing:0.04em;
+}
+.caps-warning.show{opacity:1}
+
+/* Enter button */
+#enter-btn{
+  margin-top:14px;
+  background:rgba(167,139,250,0.1);
+  border:1px solid rgba(167,139,250,0.2);
+  color:var(--accent);
+  border-radius:8px;
+  padding:11px 24px;
+  font-family:'Inter',sans-serif;
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:0.04em;
+  cursor:pointer;
+  transition:background 150ms, transform 100ms, border-color 150ms;
+}
+#enter-btn:hover{background:rgba(167,139,250,0.18);border-color:rgba(167,139,250,0.35)}
+#enter-btn:active{transform:scale(0.97)}
+
+/* Error + hint */
+#error-text{
+  font-size:12px;
+  color:var(--error);
+  margin-top:14px;
+  opacity:0;
+  transition:opacity 200ms;
+  letter-spacing:0.04em;
+  font-weight:500;
+  min-height:14px;
+}
+#hint-text{
+  font-size:11px;
+  color:var(--muted);
+  margin-top:6px;
+  opacity:0;
+  transition:opacity 400ms;
+  font-style:italic;
+  letter-spacing:0.02em;
+  max-width:280px;
+  line-height:1.6;
+  min-height:0;
+}
+#hint-text.show{opacity:1;min-height:14px}
+
+/* Lock screen footer */
+.lock-footer{
+  position:absolute;
+  bottom:24px;
+  left:0;
+  right:0;
+  text-align:center;
+  font-size:10px;
+  color:var(--muted-3);
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  opacity:0.6;
+}
+
+/* ============================================================
+   MEMORY PAGE
+   ============================================================ */
+#memory-page{
+  display:none;
+  position:relative;
+  z-index:2;
+  padding:80px 24px 0;
+  max-width:1200px;
+  margin:0 auto;
+  opacity:0;
+}
+@keyframes pageReveal{
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+.page-header{margin-bottom:8px}
+#greeting-line{
+  font-size:13px;
+  color:var(--accent);
+  font-weight:500;
+  letter-spacing:0.04em;
+  margin-bottom:8px;
+  opacity:0;
+  animation:fadeUp 600ms var(--ease) 200ms forwards;
+}
+#person-name{
+  font-size:clamp(28px,6vw,44px);
+  color:var(--text);
+  font-weight:700;
+  letter-spacing:-0.02em;
+  line-height:1.1;
+}
+#person-quote{
+  font-family:'Inter',sans-serif;
+  font-size:clamp(14px,2.2vw,16px);
+  color:var(--text-soft);
+  font-style:italic;
+  font-weight:400;
+  line-height:1.5;
+  margin-top:14px;
+  max-width:540px;
+  letter-spacing:0.01em;
+  opacity:0;
+  animation:fadeUp 700ms var(--ease) 320ms forwards;
+  position:relative;
+  padding-left:14px;
+}
+#person-quote::before{
+  content:'';
+  position:absolute;
+  left:0;
+  top:4px;
+  bottom:4px;
+  width:2px;
+  background:var(--accent);
+  border-radius:2px;
+  opacity:0.5;
+}
+#memory-count{
+  font-size:13px;
+  color:var(--muted);
+  margin-top:6px;
+  font-weight:400;
+  letter-spacing:0.02em;
+}
+
+/* Controls */
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  align-items:center;
+  margin-top:28px;
+  opacity:0;
+  animation:fadeUp 600ms var(--ease) 400ms forwards;
+}
+.search-wrap{
+  position:relative;
+  flex:1;
+  min-width:200px;
+  max-width:340px;
+}
+.search-wrap svg{
+  position:absolute;
+  left:14px;
+  top:50%;
+  transform:translateY(-50%);
+  width:14px;
+  height:14px;
+  color:var(--muted);
+  pointer-events:none;
+}
+#search{
+  width:100%;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);
+  border-radius:99px;
+  color:var(--text);
+  font-size:13px;
+  padding:10px 16px 10px 38px;
+  outline:none;
+  transition:border-color 200ms, box-shadow 200ms;
+  letter-spacing:0.02em;
+}
+#search:focus{border-color:rgba(167,139,250,0.4);box-shadow:0 0 0 3px rgba(167,139,250,0.08)}
+#search::placeholder{color:#3a3a3a}
+
+#tag-filters{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  flex:1;
+  justify-content:flex-end;
+}
+.tag-chip{
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--muted);
+  border-radius:99px;
+  padding:6px 12px;
+  font-size:11px;
+  font-family:'Inter';
+  letter-spacing:0.03em;
+  cursor:pointer;
+  transition:all 180ms ease;
+}
+.tag-chip:hover{color:var(--text);border-color:var(--border-hi)}
+.tag-chip.active{
+  background:var(--accent-dim);
+  border-color:rgba(167,139,250,0.35);
+  color:var(--accent);
+}
+
+.divider{
+  border-top:1px solid rgba(255,255,255,0.05);
+  margin:36px 0;
+}
+
+/* Grid */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));
+  gap:18px;
+}
+@media (max-width:640px){
+  .grid{grid-template-columns:1fr}
+}
+
+/* Card */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:24px;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  transition:transform 280ms var(--ease), border-color 200ms ease, background 200ms ease, box-shadow 280ms ease;
+  position:relative;
+  cursor:pointer;
+  opacity:0;
+  transform:translateY(20px);
+  overflow:hidden;
+}
+.card.revealed{
+  animation:fadeUp 600ms var(--ease) forwards;
+}
+.card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;
+  width:100%;
+  height:1px;
+  background:linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity:0;
+  transition:opacity 300ms ease;
+}
+.card:hover{
+  transform:translateY(-4px);
+  border-color:var(--border-hi);
+  background:var(--surface-hi);
+  box-shadow:0 12px 40px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(167,139,250,0.05);
+}
+.card:hover::before{opacity:0.6}
+
+.card-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:14px;
+}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{
+  display:inline-block;
+  background:var(--accent-dim);
+  border:1px solid rgba(167,139,250,0.22);
+  color:var(--accent);
+  border-radius:99px;
+  font-size:11px;
+  font-family:'Inter';
+  padding:3px 11px;
+  letter-spacing:0.03em;
+  font-weight:500;
+}
+.date{
+  font-size:12px;
+  color:var(--muted-2);
+  font-family:'Inter';
+  margin-left:auto;
+  white-space:nowrap;
+  flex-shrink:0;
+  padding-top:2px;
+}
+.card-title{
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:600;
+  font-size:17px;
+  color:var(--text);
+  margin-top:0;
+  line-height:1.3;
+  letter-spacing:-0.01em;
+}
+.card-story{
+  font-family:'Inter',sans-serif;
+  font-weight:400;
+  font-size:15px;
+  color:var(--text-soft);
+  line-height:1.8;
+  margin-top:10px;
+  display:-webkit-box;
+  -webkit-line-clamp:4;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.card-footer{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-top:18px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,0.04);
+  opacity:0;
+  transition:opacity 200ms ease;
+}
+.card:hover .card-footer{opacity:1}
+.card-action{
+  font-size:11px;
+  color:var(--muted);
+  letter-spacing:0.04em;
+  cursor:pointer;
+  transition:color 180ms;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  background:none;
+  border:none;
+  padding:4px 0;
+}
+.card-action:hover{color:var(--text)}
+.card-action svg{width:12px;height:12px}
+
+.react-btn{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  background:none;
+  border:none;
+  color:var(--muted);
+  font-size:11px;
+  cursor:pointer;
+  padding:4px 8px;
+  border-radius:99px;
+  transition:all 180ms;
+  letter-spacing:0.04em;
+}
+.react-btn:hover{color:var(--accent);background:var(--accent-dim)}
+.react-btn.active{color:var(--accent)}
+.react-btn.active svg{fill:var(--accent);stroke:var(--accent)}
+.react-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.5;transition:all 180ms}
+
+/* Empty state */
+.empty-state{
+  grid-column:1/-1;
+  text-align:center;
+  padding:64px 24px;
+  color:var(--muted);
+  font-size:13px;
+  letter-spacing:0.04em;
+}
+
+/* Footer */
+footer{
+  text-align:center;
+  font-size:12px;
+  color:var(--muted-3);
+  padding:64px 0 48px;
+  font-family:'Inter';
+  letter-spacing:0.04em;
+}
+.footer-meta{
+  margin-top:8px;
+  font-size:10px;
+  color:var(--muted-3);
+  opacity:0.5;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+}
+
+/* ============================================================
+   MEMORY MODAL
+   ============================================================ */
+#memory-modal{
+  position:fixed;
+  inset:0;
+  background:rgba(8,8,8,0.85);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  z-index:200;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  opacity:0;
+  transition:opacity 300ms ease;
+}
+#memory-modal.open{display:flex;opacity:1}
+#modal-content{
+  background:rgba(20,20,20,0.95);
+  border:1px solid var(--border-hi);
+  border-radius:20px;
+  padding:36px;
+  max-width:580px;
+  width:100%;
+  max-height:85vh;
+  overflow-y:auto;
+  position:relative;
+  transform:translateY(20px) scale(0.96);
+  transition:transform 400ms var(--ease-back);
+}
+#memory-modal.open #modal-content{transform:translateY(0) scale(1)}
+#modal-close{
+  position:absolute;
+  top:18px;
+  right:18px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid var(--border);
+  color:var(--muted);
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:all 180ms;
+}
+#modal-close:hover{color:var(--text);background:rgba(255,255,255,0.1)}
+#modal-close svg{width:14px;height:14px}
+.modal-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+.modal-date{font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:0.04em}
+.modal-title{
+  font-family:'Space Grotesk';
+  font-weight:700;
+  font-size:clamp(22px,4vw,28px);
+  color:var(--text);
+  line-height:1.25;
+  letter-spacing:-0.02em;
+  margin-bottom:18px;
+}
+.modal-story{
+  font-family:'Inter';
+  font-size:15px;
+  color:var(--text-soft);
+  line-height:1.85;
+  white-space:pre-wrap;
+}
+.modal-footer{
+  margin-top:28px;
+  padding-top:20px;
+  border-top:1px solid rgba(255,255,255,0.05);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+}
+
+/* Toast */
+#toast{
+  position:fixed;
+  bottom:32px;
+  left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:rgba(20,20,20,0.95);
+  border:1px solid var(--border-hi);
+  color:var(--text);
+  padding:12px 20px;
+  border-radius:99px;
+  font-size:13px;
+  letter-spacing:0.02em;
+  z-index:300;
+  opacity:0;
+  transition:opacity 250ms, transform 250ms var(--ease);
+  pointer-events:none;
+  backdrop-filter:blur(20px);
+  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Privacy blur on tab blur */
+body.tab-blurred #memory-page,
+body.tab-blurred #password-screen{
+  filter:blur(14px);
+  transition:filter 200ms ease;
+}
+
+/* Konami overlay */
+#konami-overlay{
+  position:fixed;
+  inset:0;
+  z-index:500;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(8,8,8,0.92);
+  backdrop-filter:blur(8px);
+  color:var(--accent);
+  font-family:'Space Grotesk';
+  font-size:clamp(20px,5vw,36px);
+  font-weight:700;
+  letter-spacing:-0.02em;
+  text-align:center;
+  padding:24px;
+  opacity:0;
+  transition:opacity 400ms;
+}
+#konami-overlay.show{display:flex;opacity:1}
+
+/* Animations */
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(20px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:0.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.01ms !important;
+    scroll-behavior:auto !important;
+  }
+  #lock-wrapper{animation:none}
+  #ambient-canvas{display:none}
+  #cursor-glow{display:none}
+}
+
+/* Mobile tweaks */
+@media (max-width:640px){
+  #memory-page{padding:64px 18px 0}
+  .card{padding:20px}
+  .controls{flex-direction:column;align-items:stretch}
+  .search-wrap{max-width:none}
+  #tag-filters{justify-content:flex-start}
+  #modal-content{padding:24px}
+  .lock-footer{display:none}
+}
+
+/* Small screens — keep lock screen single viewport */
+@media (max-height:600px){
+  #lock-wrapper{margin-bottom:24px}
+  #password-container h1{font-size:clamp(22px,5vw,32px)}
+  .input-wrap{margin-top:20px}
+}
+</style>
+</head>
+<body data-accent="violet">
+
+<!-- Ambient particle canvas -->
+<canvas id="ambient-canvas" aria-hidden="true"></canvas>
+
+<!-- Cursor glow (lock screen) -->
+<div id="cursor-glow" aria-hidden="true"></div>
+
+<!-- Reading progress bar -->
+<div id="progress-bar" aria-hidden="true"></div>
+
+<!-- ============================================================ -->
+<!-- PASSWORD SCREEN                                                -->
+<!-- ============================================================ -->
+<section id="password-screen" aria-label="Unlock">
+  <div id="password-container">
+
+    <div id="lock-wrapper" aria-hidden="true">
+      <svg id="lock-svg" viewBox="0 0 80 96" xmlns="http://www.w3.org/2000/svg">
+        <!-- Shackle (U-shaped top bar) -->
+        <path id="lock-shackle" d="M 24 44 V 28 a 16 16 0 0 1 32 0 V 44" />
+        <!-- Lock body -->
+        <rect id="lock-body" x="14" y="44" width="52" height="44" rx="6" ry="6" />
+        <!-- Keyhole -->
+        <circle id="lock-keyhole" cx="40" cy="60" r="3.5" />
+        <rect x="38.5" y="62" width="3" height="10" rx="1.5" fill="#333" />
+      </svg>
+      <div id="lock-flash"></div>
+    </div>
+
+    <h1>memories with the ones who matter.</h1>
+    <p class="subtitle">enter your key to unlock.</p>
+
+    <div class="input-wrap">
+      <input type="password" id="pwd" placeholder="••••••••" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Password">
+      <button id="toggle-pwd" aria-label="Show password" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="caps-warning" id="caps-warning">caps lock is on</div>
+
+    <button id="enter-btn" type="button">enter &rarr;</button>
+
+    <div id="error-text" role="alert" aria-live="polite"></div>
+    <div id="hint-text" role="note" aria-live="polite"></div>
+
+  </div>
+  <div class="lock-footer">private archive &middot; v2</div>
+</section>
+
+<!-- ============================================================ -->
+<!-- MEMORY PAGE                                                    -->
+<!-- ============================================================ -->
+<main id="memory-page" aria-hidden="true">
+  <header class="page-header">
+    <div id="greeting-line"></div>
+    <h2 id="person-name"></h2>
+    <p id="person-quote"></p>
+    <p id="memory-count"></p>
+
+    <div class="controls">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="search" placeholder="search memories..." aria-label="Search memories">
+      </div>
+      <div id="tag-filters" role="group" aria-label="Filter by tag"></div>
+    </div>
+  </header>
+
+  <div class="divider"></div>
+
+  <div id="memory-grid" class="grid" role="list"></div>
+
+  <footer>
+    you know who made this.
+    <div class="footer-meta" id="footer-meta"></div>
+  </footer>
+</main>
+
+<!-- ============================================================ -->
+<!-- MEMORY MODAL                                                   -->
+<!-- ============================================================ -->
+<div id="memory-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div id="modal-content">
+    <button id="modal-close" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+    <div class="modal-tags" id="modal-tags"></div>
+    <div class="modal-date" id="modal-date"></div>
+    <h3 class="modal-title" id="modal-title"></h3>
+    <div class="modal-story" id="modal-story"></div>
+    <div class="modal-footer">
+      <button class="card-action" id="modal-copy">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        copy
+      </button>
+      <button class="react-btn" id="modal-react">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+        <span id="modal-react-count">0</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ================================================================
+   EDIT HERE — passwords, names, greetings, and memories
+   ----------------------------------------------------------------
+   Passwords are stored as btoa() hash keys, NOT plaintext.
+   To set a real password, replace the string inside btoa("...").
+   Example:  btoa("myRealPassword")  →  "bXlSZWFsUGFzc3dvcmQ="
+
+   Each person also has an `accent` color theme:
+     "violet"  | "rose" | "emerald" | "amber"
+   ================================================================ */
+
+const VAULT = {
+  [btoa("unpossible")]: {
+    name: "Aryaman",
+    accent: "violet",
+    quote: "didn't think i'd actually miss texting you from a 40mm screen",
+    memories: [
+      {
+        title: "you actually took my feedback",
+        date: "sept 2025",
+        story: "You sent your animation edit at midnight asking what I thought. I said the song was literally my fav but the flashes were too much and the starting text wasn't readable. You updated it and sent it again. That's just how it is with us — honest, no sugarcoating, no hurt feelings. I still have that edit saved.",
+        tags: ["real", "that one time"]
+      },
+      {
+        title: "u fucking liar",
+        date: "nov 2025",
+        story: "I was in school texting you from my smartwatch — no phone, just a 40mm screen on my wrist. You said \"vid call rn.\" I tried to explain. You said \"u fucking liar.\" Parth Saini was sitting next to me watching me argue with my wrist. You had to see proof before you believed me. Some things are too absurd to just accept.",
+        tags: ["funny", "school"]
+      },
+      {
+        title: "bc inhone har series kharab kyu krni h",
+        date: "nov 2025",
+        story: "We went off at the same time about Netflix making English versions of Korean shows. Neither of us watched the English one. Neither of us planned to. But we both had opinions ready. Agreement that fast feels like one brain split into two people.",
+        tags: ["random", "real"]
+      },
+      {
+        title: "kitna kala h bhai tu",
+        date: "jan 2025",
+        story: "You sent \"kitna kala h bhai tu\" with a completely straight face. I replied \"Black ultra better.\" No defence, no explanation. You liked the message. Case closed.",
+        tags: ["funny", "that one time"]
+      },
+      {
+        title: "lesss gooo",
+        date: "jan 2026",
+        story: "Spent 2 hours setting up Kali Linux on my phone. The first person I told was you. Sent a screen recording. You replied \"lesss gooo.\" That was enough. You always get it without me having to explain the whole thing.",
+        tags: ["random", "real"]
+      }
+    ]
+  },
+  [btoa("merijaaN16")]: {
+    name: "Rannvijay",
+    accent: "rose",
+    quote: "some people just end up being part of the story whether you planned it or not",
+    memories: [
+      {
+        title: "would you permit me the honour",
+        date: "jun 2026",
+        story: "Devansh wanted to pass a chit to Kanishka but didn't know what to write. I gave him the line — \"Would you permit me the honour of courting you in the earnest?\" In English. Nobody in that classroom understood what it said, including Kanishka, including Devansh after he sent it. She read it out loud confused. Devansh panicked. You and I had to hold it together. Still the funniest thing that ever happened in class.",
+        tags: ["legendary", "funny"]
+      },
+      {
+        title: "konse tu 7 baje uth gya",
+        date: "feb 2026",
+        story: "The plan was always 5am, MDU, running. I'd call. You'd miss it. Wake up at 7. Text \"konse tu 7 baje uth gya\" like I was the one who failed. This happened more than once. The plan never changed. The result never changed. I still called every time.",
+        tags: ["that one time", "funny"]
+      },
+      {
+        title: "vit d ki chud rakhi h",
+        date: "nov 2025",
+        story: "My Vitamin D came back as 8. Minimum is 30. The first person I told was you. You said \"Mtlb tu Marne waala h.\" Which, medically speaking, wasn't wrong. We panicked together for a bit and then figured it out. Some things you just want to tell someone immediately.",
+        tags: ["real", "that one time"]
+      },
+      {
+        title: "dont give up",
+        date: "jun 2026",
+        story: "You had 104 fever and were possibly getting admitted. I kept calling even when you weren't picking up. At some point I said \"Dont give up\" completely deadpan, then added \"104 fever me kya hi believe kru.\" You know I meant it though. Some people check in differently.",
+        tags: ["real", "emotional"]
+      },
+      {
+        title: "it just stayed",
+        date: "early 2026",
+        story: "At some point in this chat you set my nickname to \"meri jaan.\" Nobody brought it up. Nobody changed it. It's still there. That's kind of how most things are between us — they just happen and then they stay.",
+        tags: ["real", "random"]
+      }
+    ]
+  },
+  [btoa("electral0126")]: {
+    name: "Nikunj",
+    accent: "emerald",
+    quote: "found a running partner before i found most things worth running toward",
+    memories: [
+      {
+        title: "desh bhakti at 6am",
+        date: "jan 26, 2026",
+        story: "We agreed to run at MDU on Republic Day for \"desh bhakti.\" I brought electral packets. We spent 20 minutes negotiating the start time — 5:30? 6? 6:30? 7? Somehow we made it happen. It was cold. It was worth it. Running with someone who actually shows up is rarer than it sounds.",
+        tags: ["that one time", "real"]
+      },
+      {
+        title: "adha upar jaata h adha niche",
+        date: "mar 2026",
+        story: "You were claiming your pushups were proper form. I disagreed. Specifically: \"adha upar jaata h adha niche.\" You disagreed back. I offered to demonstrate. The argument lasted longer than any actual workout. Neither of us changed our minds. That's just how we are about this stuff.",
+        tags: ["funny", "random"]
+      },
+      {
+        title: "chote dimaag",
+        date: "mar 2026",
+        story: "I said raw milk is best. You said it causes issues. I said pasteurisation kills the good stuff. You said microplastics from plastic packets are the real problem. I said \"chote dimaag.\" We were both right about different things. This is what our conversations look like when we're not running.",
+        tags: ["random", "funny"]
+      },
+      {
+        title: "just that",
+        date: "aug 2, 2025",
+        story: "You sent a wall of hearts and \"happy friendship day.\" No overthinking. No waiting to see if I'd send first. Just that. Some people make things simple.",
+        tags: ["real", "emotional"]
+      },
+      {
+        title: "the tender",
+        date: "jan 2026",
+        story: "\"Adha litre laaiyo.\" \"Normal water pi lege.\" \"25 ka packet aata h.\" \"Adha adha kr lenge.\" Two people working out logistics for a 6am run like it was a government contract. I genuinely enjoyed every second of it.",
+        tags: ["funny", "that one time"]
+      }
+    ]
+  },
+  [btoa("shiro2025")]: {
+    name: "Shirin",
+    accent: "amber",
+    quote: "6000 messages and none of them felt like enough",
+    memories: [
+      {
+        title: "dry nhi hone dete",
+        date: "2025-26",
+        story: "At some point I said \"hum tune wet h chat ko dry nhi hone dete.\" You agreed. Thousands of messages later, nothing has changed. We just keep going. I don't think either of us knows how to stop.",
+        tags: ["real", "random"]
+      },
+      {
+        title: "hello students",
+        date: "may 2026",
+        story: "Someone sent you \"cya\" and you couldn't figure out if it was good or bad. I explained it like a class: \"HELLO STUDENTS. TODAY WE ARE GOING TO LEARN MEANING OF CYA.\" You understood eventually. Teaching you things is genuinely one of my favourite activities.",
+        tags: ["funny", "that one time"]
+      },
+      {
+        title: "wht a tall niche hb i have",
+        date: "may 2026",
+        story: "You called me your \"tall niche non-chalant hb\" unprompted. I said \"Aisa tall niche or non chalant hb nhi milega khi bhi.\" Zero irony. You said \"omg wht a tall niche hb i have.\" I think about this more than I should.",
+        tags: ["real", "that one time"]
+      },
+      {
+        title: "we operate differently",
+        date: "2025-26",
+        story: "You tell me what to say. I tell you what it means. We decode each other's situations, figure out the moves, report back. It's efficient. It works. I don't know when we became each other's person for this but it happened and now it's just how things are.",
+        tags: ["real", "emotional"]
+      },
+      {
+        title: "mujhe mt uthva dena",
+        date: "may 2026",
+        story: "Ordered 900 rupee ice cream delivery alone. Reported it to you immediately. You said \"aajao khalo.\" I said \"mujhe plz mt uthva dena.\" You laughed. I ate it alone. You were the first person I told. That's enough.",
+        tags: ["random", "real"]
+      }
+    ]
+  }
+};
+// ================================================================
+
+
+/* ================================================================
+   STATE
+   ================================================================ */
+const State = {
+  currentPerson: null,
+  activeTag: null,
+  searchQuery: '',
+  wrongAttempts: 0,
+  reactions: loadReactions()
+};
+
+/* ================================================================
+   DOM REFERENCES
+   ================================================================ */
+const $ = (id) => document.getElementById(id);
+const lockWrapper = $('lock-wrapper');
+const lockShackle = $('lock-shackle');
+const lockBody = $('lock-body');
+const lockFlash = $('lock-flash');
+const pwdInput = $('pwd');
+const enterBtn = $('enter-btn');
+const togglePwd = $('toggle-pwd');
+const errorText = $('error-text');
+const hintText = $('hint-text');
+const capsWarning = $('caps-warning');
+const passwordScreen = $('password-screen');
+const memoryPage = $('memory-page');
+const memoryGrid = $('memory-grid');
+const greetingLine = $('greeting-line');
+const personName = $('person-name');
+const personQuote = $('person-quote');
+const memoryCount = $('memory-count');
+const searchInput = $('search');
+const tagFilters = $('tag-filters');
+const memoryModal = $('memory-modal');
+const modalClose = $('modal-close');
+const modalTitle = $('modal-title');
+const modalStory = $('modal-story');
+const modalDate = $('modal-date');
+const modalTags = $('modal-tags');
+const modalCopy = $('modal-copy');
+const modalReact = $('modal-react');
+const modalReactCount = $('modal-react-count');
+const toast = $('toast');
+const progressBar = $('progress-bar');
+const cursorGlow = $('cursor-glow');
+const ambientCanvas = $('ambient-canvas');
+const footerMeta = $('footer-meta');
+let particlePaused = false;
+let particleRAF = null;
+
+
+/* ================================================================
+   UTILITIES
+   ================================================================ */
+function loadReactions(){
+  try{ return JSON.parse(localStorage.getItem('mem_reactions') || '{}'); }
+  catch(e){ return {}; }
+}
+function saveReactions(){
+  try{ localStorage.setItem('mem_reactions', JSON.stringify(State.reactions)); }catch(e){}
+}
+function memoryId(person, idx){ return `${person.name.toLowerCase()}-${idx}`; }
+
+function showToast(msg, ms=1800){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => toast.classList.remove('show'), ms);
+}
+
+function timeAgo(dateStr){
+  // dateStr is a free-form string like "sometime last year"
+  // we just return it as-is — but we can add relative time later
+  return dateStr;
+}
+
+function getTimeGreeting(name){
+  const h = new Date().getHours();
+  let part;
+  if (h < 5) part = 'still up,';
+  else if (h < 12) part = 'good morning,';
+  else if (h < 17) part = 'good afternoon,';
+  else if (h < 21) part = 'good evening,';
+  else part = 'late one,';
+  return `${part} ${name.toLowerCase()}.`;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+
+/* ================================================================
+   SOUND DESIGN (Web Audio API — no external files)
+   ================================================================ */
+let audioCtx = null;
+function getAudio(){
+  if (!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e){ return null; }
+  }
+  return audioCtx;
+}
+function playTone(freq, dur=0.12, type='sine', vol=0.08, when=0){
+  const ctx = getAudio();
+  if (!ctx) return;
+  const t = ctx.currentTime + when;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t);
+  osc.stop(t + dur + 0.02);
+}
+function playUnlockSound(){
+  // Soft rising arpeggio — like a small mechanical click + chime
+  playTone(523.25, 0.08, 'sine', 0.04, 0);     // C5
+  playTone(659.25, 0.10, 'sine', 0.05, 0.06);  // E5
+  playTone(783.99, 0.14, 'sine', 0.06, 0.14);  // G5
+  playTone(1046.5, 0.18, 'sine', 0.05, 0.24);  // C6
+}
+function playErrorSound(){
+  // Soft low buzz — two quick descending tones
+  playTone(220, 0.10, 'sawtooth', 0.04, 0);
+  playTone(180, 0.12, 'sawtooth', 0.04, 0.10);
+}
+function playClickSound(){
+  playTone(880, 0.04, 'triangle', 0.03, 0);
+}
+
+
+/* ================================================================
+   AMBIENT PARTICLES — lock screen only, paused after unlock
+   ================================================================ */
+function initParticles(){
+  const canvas = ambientCanvas;
+  const ctx = canvas.getContext('2d');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) return;
+
+  let w, h, particles = [];
+  const COUNT = window.innerWidth < 640 ? 16 : 30;
+
+  function resize(){
+    w = canvas.width = window.innerWidth * devicePixelRatio;
+    h = canvas.height = window.innerHeight * devicePixelRatio;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+  }
+  function spawn(){
+    particles = [];
+    for (let i=0; i<COUNT; i++){
+      particles.push({
+        x: Math.random()*w,
+        y: Math.random()*h,
+        r: (Math.random()*1.2 + 0.3) * devicePixelRatio,
+        vx: (Math.random()-0.5) * 0.08 * devicePixelRatio,
+        vy: (Math.random()-0.5) * 0.08 * devicePixelRatio,
+        a: Math.random()*0.35 + 0.08,
+        phase: Math.random()*Math.PI*2
+      });
+    }
+  }
+  function tick(t){
+    if (particlePaused){
+      particleRAF = null;
+      return;
+    }
+    ctx.clearRect(0,0,w,h);
+    const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#a78bfa';
+    const rgb = hexToRgb(accent);
+    for (const p of particles){
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < -10) p.x = w + 10;
+      if (p.x > w + 10) p.x = -10;
+      if (p.y < -10) p.y = h + 10;
+      if (p.y > h + 10) p.y = -10;
+      const flicker = (Math.sin(t*0.001 + p.phase) * 0.3 + 0.7);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${p.a * flicker})`;
+      ctx.fill();
+    }
+    particleRAF = requestAnimationFrame(tick);
+  }
+  function hexToRgb(hex){
+    hex = hex.replace('#','');
+    if (hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+    const n = parseInt(hex, 16);
+    return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+  }
+  resize(); spawn();
+  window.addEventListener('resize', () => { resize(); spawn(); });
+  particleRAF = requestAnimationFrame(tick);
+}
+function stopParticles(){
+  particlePaused = true;
+  if (particleRAF){
+    cancelAnimationFrame(particleRAF);
+    particleRAF = null;
+  }
+  ambientCanvas.classList.add('hidden');
+  setTimeout(() => { ambientCanvas.style.display = 'none'; }, 450);
+}
+
+
+/* ================================================================
+   CURSOR GLOW (lock screen — activates on first mouse move only)
+   ================================================================ */
+function initCursorGlow(){
+  if (window.matchMedia('(pointer: coarse)').matches) return; // skip touch
+  let activated = false;
+  document.addEventListener('mousemove', (e) => {
+    cursorGlow.style.left = e.clientX + 'px';
+    cursorGlow.style.top = e.clientY + 'px';
+    if (!activated){
+      activated = true;
+      cursorGlow.classList.add('active');
+    }
+  }, { once: false });
+}
+
+
+/* ================================================================
+   UNLOCK FLOW — 6 PHASES
+   ================================================================ */
+function tryUnlock(){
+  const input = pwdInput.value.trim();
+  if (!input) {
+    triggerWrongAnimation('enter something.');
+    return;
+  }
+  const key = btoa(input);
+  const person = VAULT[key];
+  if (person){
+    triggerUnlockAnimation(person);
+  } else {
+    triggerWrongAnimation();
+  }
+}
+
+function triggerUnlockAnimation(person){
+  State.currentPerson = person;
+
+  // Apply person's accent color to whole page
+  document.body.dataset.accent = person.accent || 'violet';
+
+  // Resume audio context (browsers require user gesture)
+  const ctx = getAudio();
+  if (ctx && ctx.state === 'suspended') ctx.resume();
+  playUnlockSound();
+
+  // Phase 1 — shackle rises
+  lockShackle.style.transform = 'translateY(-17px)';
+
+  // Phase 2 — click flash at 350ms
+  setTimeout(() => {
+    lockFlash.style.animation = 'clickFlash 350ms ease-out forwards';
+  }, 350);
+
+  // Phase 3 — body glow at 400ms
+  setTimeout(() => {
+    lockBody.style.animation = 'lockGlow 300ms ease-out forwards';
+  }, 400);
+
+  // Phase 4 — lock exits at 650ms
+  setTimeout(() => {
+    lockWrapper.style.animation = 'lockExit 300ms ease-in forwards';
+  }, 650);
+
+  // Phase 5 — screen fades at 900ms, then fully removed from DOM
+  setTimeout(() => {
+    passwordScreen.style.animation = 'screenFade 200ms ease-out forwards';
+  }, 900);
+  setTimeout(() => {
+    passwordScreen.style.display = 'none';
+  }, 1120);
+
+  // Phase 6 — build and show memory page at 1050ms
+  setTimeout(() => {
+    buildMemoryPage(person);
+    memoryPage.style.display = 'block';
+    memoryPage.setAttribute('aria-hidden', 'false');
+    passwordScreen.setAttribute('aria-hidden', 'true');
+    memoryPage.style.animation = 'pageReveal 500ms ease-out forwards';
+    // Stop ambient particles — they belong only to the lock screen
+    stopParticles();
+    // Initial scroll
+    window.scrollTo(0, 0);
+  }, 1050);
+}
+
+function triggerWrongAnimation(customMsg){
+  State.wrongAttempts++;
+
+  // Capture the attempted value BEFORE clearing the input
+  const attemptedValue = pwdInput.value;
+
+  // Reset animation
+  lockWrapper.classList.remove('shake', 'error-flash');
+  void lockWrapper.offsetWidth; // reflow
+  lockWrapper.classList.add('shake', 'error-flash');
+
+  // Error text
+  errorText.textContent = customMsg || 'wrong key.';
+  errorText.style.opacity = '1';
+  pwdInput.value = '';
+
+  // Sound
+  playErrorSound();
+
+  // Clear error after 2s
+  clearTimeout(triggerWrongAnimation._t);
+  triggerWrongAnimation._t = setTimeout(() => { errorText.style.opacity = '0'; }, 2000);
+  setTimeout(() => {
+    lockWrapper.classList.remove('shake', 'error-flash');
+  }, 450);
+
+  // Hint system — after 3 wrong attempts, surface a soft prompt
+  if (State.wrongAttempts >= 3 && !hintText.dataset.shown){
+    hintText.textContent = 'hint: keys are simple. usually a name and a word.';
+    hintText.classList.add('show');
+    hintText.dataset.shown = '1';
+  }
+  // After 5 wrong attempts, surface a stronger nudge — using the captured value
+  if (State.wrongAttempts >= 5){
+    const lower = attemptedValue.toLowerCase();
+    // Don't reveal which person — just a generic second hint
+    if (lower.trim().length > 0){
+      hintText.textContent = "the password isn't your name. it's something only we'd know.";
+    } else {
+      hintText.textContent = "the password isn't your name. it's something only we'd know.";
+    }
+    hintText.classList.add('show');
+  }
+}
+
+
+/* ================================================================
+   BUILD MEMORY PAGE
+   ================================================================ */
+function buildMemoryPage(person){
+  // Greeting line (time-aware)
+  greetingLine.textContent = getTimeGreeting(person.name);
+
+  // Person name
+  personName.textContent = `memories with ${person.name}.`;
+
+  // Personal quote / tagline
+  personQuote.textContent = person.quote || '';
+
+  // Animated count up
+  animateCount(person.memories.length);
+
+  // Build tag filter chips
+  buildTagFilters(person);
+
+  // Build cards
+  renderCards(person);
+
+  // Footer meta
+  const now = new Date();
+  const stamp = now.toLocaleDateString('en-US', { month:'short', year:'numeric' });
+  footerMeta.textContent = `opened ${stamp} · private`;
+}
+
+function animateCount(target){
+  const dur = 900;
+  const start = performance.now();
+  function step(t){
+    const p = Math.min(1, (t - start) / dur);
+    const eased = 1 - Math.pow(1 - p, 3);
+    const val = Math.round(eased * target);
+    memoryCount.textContent = `${val} memor${val===1?'y':'ies'} stored here.`;
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function buildTagFilters(person){
+  const tags = new Set();
+  person.memories.forEach(m => m.tags.forEach(t => tags.add(t)));
+  tagFilters.innerHTML = '';
+  tags.forEach(t => {
+    const chip = document.createElement('button');
+    chip.className = 'tag-chip';
+    chip.textContent = `#${t}`;
+    chip.dataset.tag = t;
+    chip.addEventListener('click', () => {
+      if (State.activeTag === t){
+        State.activeTag = null;
+        chip.classList.remove('active');
+      } else {
+        State.activeTag = t;
+        tagFilters.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      }
+      renderCards(State.currentPerson);
+    });
+    tagFilters.appendChild(chip);
+  });
+}
+
+function renderCards(person){
+  memoryGrid.innerHTML = '';
+  const q = State.searchQuery.toLowerCase();
+  const filtered = person.memories.filter(m => {
+    const matchesTag = !State.activeTag || m.tags.includes(State.activeTag);
+    const matchesSearch = !q ||
+      m.title.toLowerCase().includes(q) ||
+      m.story.toLowerCase().includes(q) ||
+      m.tags.some(t => t.toLowerCase().includes(q));
+    return matchesTag && matchesSearch;
+  });
+
+  if (filtered.length === 0){
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'no memories match. try a different search.';
+    memoryGrid.appendChild(empty);
+    return;
+  }
+
+  filtered.forEach((m) => {
+    const originalIdx = person.memories.indexOf(m);
+    const id = memoryId(person, originalIdx);
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.setAttribute('role', 'listitem');
+    card.dataset.id = id;
+    const reacted = State.reactions[id] ? 1 : 0;
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="tags">${m.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
+        <span class="date">${escapeHtml(m.date)}</span>
+      </div>
+      <div class="card-title">${escapeHtml(m.title)}</div>
+      <div class="card-story">${escapeHtml(m.story)}</div>
+      <div class="card-footer">
+        <button class="card-action copy-btn" aria-label="Copy memory">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          copy
+        </button>
+        <button class="react-btn ${reacted ? 'active' : ''}" aria-label="Star this memory">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+          <span class="react-count">${reacted}</span>
+        </button>
+      </div>
+    `;
+    // Open modal on card click (but not on buttons)
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      openModal(m, id);
+    });
+    // Copy
+    card.querySelector('.copy-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      copyMemory(m);
+    });
+    // React
+    const reactBtn = card.querySelector('.react-btn');
+    reactBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleReaction(id, reactBtn);
+    });
+
+    memoryGrid.appendChild(card);
+
+    // Stagger reveal
+    setTimeout(() => card.classList.add('revealed'), 60 * (filtered.indexOf(m) + 1));
+  });
+}
+
+
+/* ================================================================
+   MEMORY MODAL
+   ================================================================ */
+function openModal(m, id){
+  modalTags.innerHTML = m.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+  modalDate.textContent = m.date;
+  modalTitle.textContent = m.title;
+  modalStory.textContent = m.story;
+  modalReactCount.textContent = State.reactions[id] ? 1 : 0;
+  modalReact.classList.toggle('active', !!State.reactions[id]);
+  modalReact.dataset.id = id;
+  memoryModal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  modalClose.focus();
+}
+function closeModal(){
+  memoryModal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+function toggleReaction(id, btn){
+  const active = !!State.reactions[id];
+  if (active){
+    delete State.reactions[id];
+  } else {
+    State.reactions[id] = 1;
+    playClickSound();
+  }
+  saveReactions();
+  if (btn){
+    btn.classList.toggle('active', !active);
+    btn.querySelector('.react-count').textContent = !active ? 1 : 0;
+  } else {
+    modalReact.classList.toggle('active', !active);
+    modalReactCount.textContent = !active ? 1 : 0;
+  }
+  showToast(!active ? 'starred.' : 'unstarred.', 1200);
+}
+function copyMemory(m){
+  const text = `${m.title}\n\n${m.story}\n\n— ${m.date}`;
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(
+      () => showToast('copied to clipboard.'),
+      () => showToast('copy failed.')
+    );
+  } else {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); showToast('copied to clipboard.'); }
+    catch(e){ showToast('copy failed.'); }
+    document.body.removeChild(ta);
+  }
+}
+
+
+/* ================================================================
+   EVENT WIRING
+   ================================================================ */
+function wireEvents(){
+  // Enter button + Enter key
+  enterBtn.addEventListener('click', tryUnlock);
+  pwdInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') tryUnlock();
+  });
+
+  // Password visibility toggle
+  togglePwd.addEventListener('click', () => {
+    const isPwd = pwdInput.type === 'password';
+    pwdInput.type = isPwd ? 'text' : 'password';
+    togglePwd.setAttribute('aria-label', isPwd ? 'Hide password' : 'Show password');
+    togglePwd.style.color = isPwd ? 'var(--accent)' : '';
+    pwdInput.focus();
+  });
+
+  // Caps lock detection
+  pwdInput.addEventListener('keydown', (e) => {
+    if (e.getModifierState && e.getModifierState('CapsLock')){
+      capsWarning.classList.add('show');
+    } else {
+      capsWarning.classList.remove('show');
+    }
+  });
+  pwdInput.addEventListener('keyup', (e) => {
+    if (e.getModifierState && !e.getModifierState('CapsLock')){
+      capsWarning.classList.remove('show');
+    }
+  });
+  pwdInput.addEventListener('blur', () => capsWarning.classList.remove('show'));
+
+  // Auto-focus password on load
+  setTimeout(() => pwdInput.focus(), 100);
+
+  // Search
+  let searchTimer;
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      State.searchQuery = e.target.value;
+      if (State.currentPerson) renderCards(State.currentPerson);
+    }, 120);
+  });
+
+  // Modal close
+  modalClose.addEventListener('click', closeModal);
+  memoryModal.addEventListener('click', (e) => {
+    if (e.target === memoryModal) closeModal();
+  });
+  modalCopy.addEventListener('click', () => {
+    const id = modalReact.dataset.id;
+    const m = State.currentPerson.memories.find((_,i) => memoryId(State.currentPerson,i) === id);
+    if (m) copyMemory(m);
+  });
+  modalReact.addEventListener('click', () => {
+    const id = modalReact.dataset.id;
+    toggleReaction(id, null);
+  });
+
+  // Reading progress
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement;
+    const max = h.scrollHeight - h.clientHeight;
+    const pct = max > 0 ? (h.scrollTop / max) * 100 : 0;
+    progressBar.style.width = pct + '%';
+  }, { passive: true });
+
+  // Keyboard shortcuts (global)
+  document.addEventListener('keydown', (e) => {
+    // Escape closes modal
+    if (e.key === 'Escape' && memoryModal.classList.contains('open')){
+      closeModal();
+      return;
+    }
+    // "/" focuses search (when on memory page)
+    if (e.key === '/' && memoryPage.style.display === 'block' && document.activeElement !== searchInput){
+      e.preventDefault();
+      searchInput.focus();
+    }
+  });
+
+  // Tab blur — privacy: blur content so passers-by / screen-recorders see nothing
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden){
+      document.body.classList.add('tab-blurred');
+    } else {
+      document.body.classList.remove('tab-blurred');
+    }
+  });
+  window.addEventListener('blur', () => document.body.classList.add('tab-blurred'));
+  window.addEventListener('focus', () => document.body.classList.remove('tab-blurred'));
+
+  // Tag chips clickable as filter (already wired in buildTagFilters)
+}
+
+/* ================================================================
+   INIT
+   ================================================================ */
+function init(){
+  wireEvents();
+  initParticles();
+  initCursorGlow();
+
+  // Prevent right-click on password screen for mild casual obfuscation
+  // (comment out if you want dev tools / view-source easy)
+  // passwordScreen.addEventListener('contextmenu', e => e.preventDefault());
+
+  // Prevent form autofill from leaking
+  pwdInput.setAttribute('autocomplete', 'off');
+}
+
+if (document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
